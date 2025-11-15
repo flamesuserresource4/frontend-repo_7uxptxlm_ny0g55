@@ -1,24 +1,70 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+
+const API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [providers, setProviders] = useState([])
+  const [assignments, setAssignments] = useState([])
+  const [start, setStart] = useState('2025-01-01')
+  const [end, setEnd] = useState('2025-01-07')
+  const [loading, setLoading] = useState(false)
+  const [conflicts, setConflicts] = useState([])
+
+  useEffect(() => {
+    fetch(`${API}/health`).catch(()=>{})
+  }, [])
+
+  const seedDemo = async () => {
+    // Seed two providers and a REG shift type
+    await fetch(`${API}/providers`, {method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id:'p1', name:'Dr. Alpha', fte:1.0, acc_target: 180, call_target: 6, site_preferences:['UH'], qualifications:['OR'], seniority_level:5, politics_weight:0.2})})
+    await fetch(`${API}/providers`, {method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id:'p2', name:'Dr. Beta', fte:0.8, acc_target: 160, call_target: 5, site_preferences:['UH'], qualifications:['OR'], seniority_level:3, politics_weight:0.1})})
+    await fetch(`${API}/shift-types`, {method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id:'reg-uh', name:'REG', site:'UH', weekly:false, requires_qualification:'OR'})})
+    const res = await fetch(`${API}/providers`)
+    setProviders(await res.json())
+  }
+
+  const generate = async () => {
+    setLoading(true)
+    setConflicts([])
+    await fetch(`${API}/generate`, {method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({start_date:start, end_date:end})})
+    const a = await fetch(`${API}/assignments`).then(r=>r.json())
+    setAssignments(a)
+    setLoading(false)
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">
-          Vibe Coding Platform
-        </h1>
-        <p className="text-gray-600 mb-6">
-          Your AI-powered development environment
-        </p>
-        <div className="text-center">
-          <button
-            onClick={() => setCount(count + 1)}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded"
-          >
-            Count is {count}
-          </button>
+    <div className="min-h-screen bg-slate-950 text-white p-6">
+      <div className="max-w-3xl mx-auto space-y-6">
+        <h1 className="text-2xl font-semibold">ORchestrator.ai — Scheduling Engine (MVP demo)</h1>
+        <div className="bg-slate-900 rounded-xl p-4 space-y-3">
+          <button onClick={seedDemo} className="px-3 py-2 bg-emerald-600 rounded">Seed demo data</button>
+          <div className="flex gap-3 items-center flex-wrap">
+            <label>Start <input type="date" value={start} onChange={e=>setStart(e.target.value)} className="text-black rounded px-2"/></label>
+            <label>End <input type="date" value={end} onChange={e=>setEnd(e.target.value)} className="text-black rounded px-2"/></label>
+            <button onClick={generate} disabled={loading} className="px-3 py-2 bg-indigo-600 rounded disabled:opacity-50">{loading? 'Generating...' : 'Generate schedule'}</button>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 rounded-xl p-4">
+          <h2 className="text-xl mb-2">Providers</h2>
+          <ul className="list-disc pl-6">
+            {providers.map(p=> (
+              <li key={p.id}>{p.name} — FTE {p.fte}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="bg-slate-900 rounded-xl p-4">
+          <h2 className="text-xl mb-2">Assignments</h2>
+          <ul className="divide-y divide-slate-800">
+            {assignments.map((a,i)=> (
+              <li key={i} className="py-2 flex justify-between">
+                <span>{a.date}</span>
+                <span>{a.shift_type} @ {a.site}</span>
+                <span>{a.provider_id}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>
